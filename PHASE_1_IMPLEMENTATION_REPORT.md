@@ -79,6 +79,7 @@ This keeps Windows spooler communication separate from ESC/POS command generatio
 - printer initialization and reset (`ESC @`)
 - left, centre, and right alignment (`ESC a`)
 - bold on and off (`ESC E`)
+- double strike on and off (`ESC G`)
 - normal, double-width, double-height, and double-width-and-height text (`GS !`)
 - plain native text lines
 - paper feed (`ESC d`)
@@ -122,6 +123,22 @@ ABCDEFGHIJKLMNOPQRSTUVWXYZ
 
 It converts the bitmap locally to thresholded one-bit image data, caps its width at 384 pixels, and sends it directly with ESC/POS raster commands. Windows and Chrome are not used for image conversion or page scaling.
 
+### Maximum-darkness default
+
+Every Phase 1 job now begins with the following documented ESC/POS sequence:
+
+```text
+ESC @       Initialize/reset printer
+ESC E 1     Enable emphasized/bold text
+ESC G 1     Enable double-strike text
+```
+
+`receipt` preserves those modes for every native text line. Existing double-width formatting remains limited to the company heading, and totals retain their explicit bold formatting without using double-width body text.
+
+Raster output remains pure 1-bit black/white. The conversion threshold is now an aggressive luminance value of `224`, so dark and medium-dark pixels become black bits in the printer raster stream.
+
+ZKTeco's official product material confirms that the ZKP5803 has adjustable print density and is ESC/POS compatible, but does not provide the actual density/heating command bytes or a safe maximum value. Therefore, no undocumented hardware density or heating command is emitted.
+
 ### Console commands and logging
 
 `Program.cs` supports:
@@ -150,6 +167,7 @@ The application logs printer discovery, job opening, byte count, Windows job ID,
 - wrapping normal receipt descriptions to a fixed width
 - splitting a single overlong value without exceeding the configured width
 - ESC/POS initialize and bold command bytes
+- maximum-darkness initialization bytes: reset, bold, and double-strike
 - ESC/POS native QR store and print command bytes
 
 ## Verification completed in this workspace

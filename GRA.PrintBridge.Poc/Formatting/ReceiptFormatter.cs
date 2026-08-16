@@ -12,14 +12,14 @@ public sealed class ReceiptFormatter(PrinterProfile profile)
     public byte[] CreateReceipt(TestReceipt receipt)
     {
         ArgumentNullException.ThrowIfNull(receipt);
-        var printer = new EscPosBuilder().Initialize();
+        var printer = new EscPosBuilder().InitializeForMaximumDarkness();
         printer.SetAlignment(Alignment.Center).SetBold(true).SetTextSize(TextSize.DoubleWidth).WriteLine("INDUSTRIAL");
         printer.WriteLine("ENGINEERING").SetTextSize(TextSize.Normal).WriteLine("CONSULTANTS LIMITED");
-        printer.SetBold(false).WriteLine(string.Empty).SetBold(true).WriteLine("VAT INVOICE").SetBold(false).WriteLine(string.Empty);
+        printer.WriteLine(string.Empty).SetBold(true).WriteLine("VAT INVOICE").WriteLine(string.Empty);
         printer.SetAlignment(Alignment.Left);
         WriteWrapped(printer, $"Invoice #: {receipt.InvoiceNumber}");
         printer.WriteLine($"Date: {receipt.Date}").WriteLine(string.Empty).WriteLine("Customer:");
-        printer.SetBold(true).WriteLine(receipt.CustomerName).SetBold(false).WriteLine(receipt.CustomerType);
+        printer.SetBold(true).WriteLine(receipt.CustomerName).WriteLine(receipt.CustomerType);
         Separator(printer);
 
         foreach (var item in receipt.Items)
@@ -34,13 +34,13 @@ public sealed class ReceiptFormatter(PrinterProfile profile)
         Separator(printer);
         foreach (var total in receipt.Totals)
         {
-            printer.SetBold(total.Label == "TOTAL");
+            // Reassert emphasis for totals while retaining the maximum-darkness default for every row.
+            printer.SetBold(true);
             WriteAmountRow(printer, total.Label, total.Amount);
-            printer.SetBold(false);
         }
 
         Separator(printer);
-        printer.SetAlignment(Alignment.Center).SetBold(true).WriteLine("EVAT RECEIPT INFORMATION").SetBold(false).SetAlignment(Alignment.Left);
+        printer.SetAlignment(Alignment.Center).SetBold(true).WriteLine("EVAT RECEIPT INFORMATION").SetAlignment(Alignment.Left);
         printer.WriteLine(string.Empty).WriteLine("SDC ID:").WriteLine(receipt.SdcId).WriteLine(string.Empty);
         printer.WriteLine("Receipt Number:");
         WriteWrapped(printer, receipt.ReceiptNumber);
@@ -58,8 +58,8 @@ public sealed class ReceiptFormatter(PrinterProfile profile)
 
     public byte[] CreateTextTest()
     {
-        var printer = new EscPosBuilder().Initialize();
-        printer.SetAlignment(Alignment.Center).SetBold(true).WriteLine("BOLD + CENTRED").SetBold(false);
+        var printer = new EscPosBuilder().InitializeForMaximumDarkness();
+        printer.SetAlignment(Alignment.Center).SetBold(true).WriteLine("BOLD + CENTRED");
         printer.SetTextSize(TextSize.DoubleWidth).WriteLine("LARGE").ResetTextSize();
         printer.SetAlignment(Alignment.Left).WriteLine("Left-aligned normal text");
         printer.SetAlignment(Alignment.Right).WriteLine("Right-aligned 658.00");

@@ -19,6 +19,6 @@ public static class QrGenerator
         }
 
         using var bitmap = qrCode.GetGraphic(pixelsPerModule, darkColor: Color.Black, lightColor: Color.White, drawQuietZones: true);
-        return RasterConverter.ToRaster(bitmap, maxWidthPixels, blackThreshold: 128);
+        return RasterConverter.ToRaster(bitmap, maxWidthPixels);
     }
 }

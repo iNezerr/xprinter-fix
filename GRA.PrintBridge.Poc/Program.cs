@@ -94,7 +94,7 @@ internal static class Program
 
     private static byte[] CreateQrTest()
     {
-        var printer = new EscPosBuilder().Initialize().SetAlignment(Alignment.Center).SetBold(true).WriteLine("QR TEST").SetBold(false);
+        var printer = new EscPosBuilder().InitializeForMaximumDarkness().SetAlignment(Alignment.Center).WriteLine("QR TEST");
         printer.PrintRaster(QrGenerator.GenerateRaster("https://example.com/gra-print-test", maxWidthPixels: 240));
         printer.WriteLine(string.Empty).SetAlignment(Alignment.Left).WriteLine("https://example.com/gra-print-test").FeedLines(4);
         return printer.Build();
@@ -104,7 +104,7 @@ internal static class Program
     {
         using var bitmap = RasterConverter.CreateRasterTestImage();
         var raster = RasterConverter.ToRaster(bitmap, maxWidthPixels: 384);
-        var printer = new EscPosBuilder().Initialize().SetAlignment(Alignment.Center).PrintRaster(raster).FeedLines(4);
+        var printer = new EscPosBuilder().InitializeForMaximumDarkness().SetAlignment(Alignment.Center).PrintRaster(raster).FeedLines(4);
         return printer.Build();
     }
 

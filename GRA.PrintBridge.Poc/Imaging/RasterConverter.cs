@@ -7,7 +7,10 @@ namespace GRA.PrintBridge.Poc.Imaging;
 /// <summary>Converts a bitmap to 1-bit black-and-white ESC/POS raster data locally.</summary>
 public static class RasterConverter
 {
-    public static RasterImage ToRaster(Bitmap source, int maxWidthPixels, byte blackThreshold = 160)
+    /// <summary>Threshold that turns medium-dark antialiased pixels into solid black in the final one-bit image.</summary>
+    public const byte MaximumDarknessThreshold = 224;
+
+    public static RasterImage ToRaster(Bitmap source, int maxWidthPixels, byte blackThreshold = MaximumDarknessThreshold)
     {
         ArgumentNullException.ThrowIfNull(source);
         if (maxWidthPixels is <= 0 or > 384)
@@ -65,4 +68,5 @@ public static class RasterConverter
         graphics.DrawString("ABCDEFGHIJKLMNOPQRSTUVWXYZ", bodyFont, brush, new PointF(8, 82));
         return bitmap;
     }
+
 }

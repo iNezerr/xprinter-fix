@@ -86,10 +86,11 @@ Print job accepted. Windows job ID: 12.
 
 ## Print behavior and calibration
 
-- Receipt text uses native ESC/POS Font A text and bold commands for dark, sharp output. It is not rasterized.
+- Every print job resets the printer, then enables native ESC/POS emphasized/bold (`ESC E 1`) and double-strike (`ESC G 1`) before receipt text is sent. `receipt` therefore prints all native receipt text using both darkness modes by default, while retaining the existing double-width heading only.
 - Native QR support is implemented in `EscPosBuilder.PrintNativeQr`. The runnable `qr` and `receipt` tests intentionally use the dependable 1-bit raster QR path because clone firmware support for native `GS ( k` QR commands is not yet confirmed for this specific POS-58 installation.
-- Raster images are created locally, capped at 384 pixels, thresholded to 1-bit black/white, and sent with `GS v 0` raster commands. Neither Windows nor Chrome transforms them.
+- Raster images are created locally, capped at 384 pixels, aggressively thresholded at luminance 224 into pure 1-bit black/white, and sent with `GS v 0` raster commands. Neither Windows nor Chrome transforms them.
 - The profile has `SupportsCut = false`; no cutter command is sent. All jobs feed four lines after content.
+- ZKTeco confirms this model has adjustable print density, but its available official material does not document a safe ESC/POS heating/density command or maximum value. No guessed hardware density byte is sent.
 - The values in the requested receipt sample are kept as supplied. Its two shown line-item amounts do not arithmetically equal the supplied subtotal, so this POC deliberately does not calculate or validate invoice totals.
 
 ## Physical checks required before Phase 2

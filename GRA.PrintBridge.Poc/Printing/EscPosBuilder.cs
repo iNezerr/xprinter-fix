@@ -16,6 +16,15 @@ public sealed class EscPosBuilder
         return this;
     }
 
+    /// <summary>
+    /// Resets the printer, then enables the documented ESC/POS text-density modes used by this POC.
+    /// No hardware heating or density byte is sent because ZKTeco has not documented a safe command/value for this model.
+    /// </summary>
+    public EscPosBuilder InitializeForMaximumDarkness()
+    {
+        return Initialize().SetBold(true).SetDoubleStrike(true);
+    }
+
     public EscPosBuilder SetAlignment(Alignment alignment)
     {
         _bytes.AddRange([0x1B, 0x61, (byte)alignment]);
@@ -25,6 +34,13 @@ public sealed class EscPosBuilder
     public EscPosBuilder SetBold(bool enabled)
     {
         _bytes.AddRange([0x1B, 0x45, enabled ? (byte)1 : (byte)0]);
+        return this;
+    }
+
+    /// <summary>Enables or disables ESC/POS double-strike text density.</summary>
+    public EscPosBuilder SetDoubleStrike(bool enabled)
+    {
+        _bytes.AddRange([0x1B, 0x47, enabled ? (byte)1 : (byte)0]);
         return this;
     }
 
