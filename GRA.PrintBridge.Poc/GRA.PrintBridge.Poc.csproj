@@ -7,8 +7,10 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <UseSystemDrawing>true</UseSystemDrawing>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <DocnetRuntime>win-x64</DocnetRuntime>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Docnet.Core" Version="2.6.0" />
     <PackageReference Include="QRCoder" Version="1.6.0" />
     <PackageReference Include="System.Drawing.Common" Version="8.0.8" />
   </ItemGroup>

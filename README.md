@@ -1,33 +1,30 @@
 # GRA Print Bridge, Phase 1 POC
 
-This is a Windows-only console proof of concept for the installed `POS-58` ZKTeco ZKP5803-compatible thermal printer. It sends printer-ready RAW ESC/POS bytes through the Windows spooler. It does not use Chrome, PDFs, a normal Windows page-layout print path, a web app, or a GRA integration.
-
-## Project structure
+This Windows-only console application prints the actual GRA invoice PDF through the existing `POS-58` / ZKTeco ZKP5803 printer. The receipt path is:
 
 ```text
-GRA.PrintBridge.Poc.sln
-├── GRA.PrintBridge.Poc/
-│   ├── Program.cs                         Console commands and clear logging
-│   ├── Printing/
-│   │   ├── PrinterProfile.cs              ZKP5803 physical/layout configuration
-│   │   ├── RawPrinterService.cs           Windows RAW spooler implementation
-│   │   └── EscPosBuilder.cs               Native ESC/POS command builder
-│   ├── Formatting/
-│   │   ├── TextWrapper.cs                 Reusable width-aware wrapping
-│   │   └── ReceiptFormatter.cs            Hard-coded Phase 1 receipt layout
-│   ├── Imaging/
-│   │   ├── RasterImage.cs                 ESC/POS 1-bit raster representation
-│   │   ├── RasterConverter.cs             Local bitmap to 1-bit conversion
-│   │   └── QrGenerator.cs                 High-contrast QR raster generation
-│   └── Models/TestReceipt.cs              Test invoice data
-└── GRA.PrintBridge.Poc.Tests/             Wrapper and command-byte unit tests
+GRA PDF -> PDFium render -> crop -> proportional resize -> grayscale luminance -> 1-bit raster -> ESC/POS -> RAW Windows spooler -> POS-58
 ```
+
+It does not use Chrome, Adobe, a browser, `window.print()`, PDF page-layout printing, or the Windows print dialog.
+
+## Receipt behavior
+
+`receipt` does not rebuild the invoice with native receipt text. It renders the original page, preserving the GRA logo, headings, TIN, information rows, grey table header, item table, totals, E-VAT section, and spacing as one visual document.
+
+- PDF renderer: `Docnet.Core` 2.6.0, a PDFium renderer.
+- Source rendering resolution: 600 DPI.
+- Crop: scans the rendered page for luminance of 245 or darker, then retains a 24-pixel safety border around the visible content.
+- Resize: scales the cropped image proportionally to exactly 384 dots wide. It never independently scales width and height.
+- Raster: calculates grayscale luminance and thresholds at 224, turning dark and medium-dark pixels into black. The print stream contains only 1-bit black or white pixels.
+- Printer setup: every job initializes the printer then enables ESC/POS bold/emphasized (`ESC E 1`) and double-strike (`ESC G 1`). No undocumented heating/density byte is sent.
 
 ## Setup on the Windows printer computer
 
-1. Confirm that the printer is powered on, connected by USB, and appears in **Settings > Bluetooth & devices > Printers & scanners** as `POS-58`.
-2. Install the .NET 8 SDK if it is not already installed.
-3. Open PowerShell in this project folder and restore/build:
+1. Install the .NET 8 SDK.
+2. Confirm that the printer is installed as `POS-58`.
+3. Put the supplied `NEW RECEIPT.pdf` in your Windows Downloads folder.
+4. Restore and build:
 
    ```powershell
    dotnet restore
@@ -35,72 +32,62 @@ GRA.PrintBridge.Poc.sln
    dotnet test -c Release
    ```
 
-4. If Windows uses a different installed name, set it only for the current PowerShell session:
+If the PDF is stored elsewhere, either set an environment variable or pass the path after `receipt`:
 
-   ```powershell
-   $env:GRA_PRINTER_NAME = "Exact Windows printer name"
-   ```
+```powershell
+$env:GRA_RECEIPT_PDF = "C:\Invoices\NEW RECEIPT.pdf"
+dotnet run --project .\GRA.PrintBridge.Poc -- receipt "C:\Invoices\NEW RECEIPT.pdf"
+```
 
-5. The ZKP5803 default profile is 384 dots wide and 32 native Font A characters per line. If physical output shows a character edge clipping, calibrate the profile without editing source:
+If Windows has a different printer name:
 
-   ```powershell
-   $env:GRA_CHARACTERS_PER_LINE = "30"
-   ```
+```powershell
+$env:GRA_PRINTER_NAME = "Exact Windows printer name"
+```
 
-## Run tests
+## Commands
 
-Use `--` to separate `dotnet run` options from application arguments. Recent SDKs may also accept `dotnet run receipt`, but the forms below work consistently.
+Print the supplied PDF from the Windows Downloads folder:
+
+```powershell
+dotnet run --project .\GRA.PrintBridge.Poc -- receipt
+```
+
+Run diagnostic commands:
 
 ```powershell
 dotnet run --project .\GRA.PrintBridge.Poc -- text
-dotnet run --project .\GRA.PrintBridge.Poc -- receipt
 dotnet run --project .\GRA.PrintBridge.Poc -- qr
 dotnet run --project .\GRA.PrintBridge.Poc -- raster
 dotnet run --project .\GRA.PrintBridge.Poc -- all
 ```
 
-The commands map to the requested short forms when the current directory is `GRA.PrintBridge.Poc`:
-
-```powershell
-dotnet run -- text
-dotnet run -- receipt
-dotnet run -- qr
-dotnet run -- raster
-dotnet run -- all
-```
-
-For the five-consecutive-receipt physical reliability test:
+For five consecutive PDF receipts:
 
 ```powershell
 dotnet run --project .\GRA.PrintBridge.Poc -- receipt --count 5
 ```
 
-Expected console flow:
+## Project structure
 
 ```text
-Printer found: POS-58
-Opening printer... (1/1)
-Sending 1452 bytes...
-Print job accepted. Windows job ID: 12.
+GRA.PrintBridge.Poc/
+├── Program.cs                         Commands and PDF discovery
+├── Printing/
+│   ├── RawPrinterService.cs           Windows RAW spooler transport
+│   ├── EscPosBuilder.cs               ESC/POS setup and raster commands
+│   └── PrinterProfile.cs              384-dot ZKP5803 profile
+├── Formatting/
+│   ├── ReceiptFormatter.cs            Native text diagnostic only
+│   └── TextWrapper.cs                 Diagnostic text wrapping
+└── Imaging/
+    ├── PdfReceiptRenderer.cs          PDFium render, crop, resize, 1-bit result
+    ├── BitmapCropper.cs               Outer whitespace crop detection
+    ├── RasterConverter.cs             Grayscale luminance to 1-bit ESC/POS data
+    ├── QrGenerator.cs                 QR diagnostic raster
+    └── RasterImage.cs                 ESC/POS raster representation
 ```
 
-## Print behavior and calibration
+## Physical validation before Phase 2
 
-- Every print job resets the printer, then enables native ESC/POS emphasized/bold (`ESC E 1`) and double-strike (`ESC G 1`) before receipt text is sent. `receipt` therefore prints all native receipt text using both darkness modes by default, while retaining the existing double-width heading only.
-- Native QR support is implemented in `EscPosBuilder.PrintNativeQr`. The runnable `qr` and `receipt` tests intentionally use the dependable 1-bit raster QR path because clone firmware support for native `GS ( k` QR commands is not yet confirmed for this specific POS-58 installation.
-- Raster images are created locally, capped at 384 pixels, aggressively thresholded at luminance 224 into pure 1-bit black/white, and sent with `GS v 0` raster commands. Neither Windows nor Chrome transforms them.
-- The profile has `SupportsCut = false`; no cutter command is sent. All jobs feed four lines after content.
-- ZKTeco confirms this model has adjustable print density, but its available official material does not document a safe ESC/POS heating/density command or maximum value. No guessed hardware density byte is sent.
-- The values in the requested receipt sample are kept as supplied. Its two shown line-item amounts do not arithmetically equal the supplied subtotal, so this POC deliberately does not calculate or validate invoice totals.
-
-## Physical checks required before Phase 2
-
-Phase 1 is not physically complete until these checks are performed on the actual `POS-58` printer:
-
-1. `text`: check density, bold, centre/left/right alignment, double width, separator, currency, and long-line wrapping.
-2. `receipt`: verify every receipt line is inside the printable width, legible, dark, and has no blank paper area or clipped content.
-3. `qr`: scan the printed code and confirm it resolves to `https://example.com/gra-print-test`.
-4. `raster`: confirm the three supplied raster text lines are sharp and complete.
-5. Run `receipt --count 5` and verify all five receipts succeed without skipped lines, spooler failures, or different spacing.
-
-Do not begin PDF parsing, web UI, GRA integration, authentication, or database work until those physical checks pass. If native right alignment or native QR is not supported by the installed driver/firmware, record that observed limitation and keep the raster QR fallback.
+Compare the original PDF directly with the thermal output and verify the complete original layout is recognisable, including the logo, table structure, all item and tax values, E-VAT details, and totals. Confirm small text remains readable, no content is clipped, the output is dark, and the QR diagnostic scans. Do not begin Phase 2 until five consecutive `receipt` jobs print correctly.
